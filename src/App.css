@@ -690,6 +690,15 @@
   flex-wrap: wrap;
 }
 
+/* Green tint variant for "already submitted" state */
+.submitted-banner {
+  background: rgba(16,185,129,0.08);
+  border-color: rgba(16,185,129,0.3);
+}
+.submitted-banner .draft-banner-title {
+  color: #10b981;
+}
+
 .draft-banner-left {
   display: flex;
   align-items: center;

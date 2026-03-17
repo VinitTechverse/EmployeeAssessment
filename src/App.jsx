@@ -4,7 +4,8 @@ import './App.css'
 // ── constants ─────────────────────────────────────────────────────────────────
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPDstLHE9EbCGl1OCfkgRaX2cbmx6E_uPRyebVzgMC9NTQ6pNdbnU0tlIHl9EhCQ/exec'
-const DRAFT_KEY = 'rt_review_2026_draft'
+const DRAFT_KEY      = 'rt_review_2026_draft'
+const SUBMITTED_KEY  = 'rt_review_2026_submitted'
 const TOTAL_STEPS = 10  // 0=cover, 1-7=sections, 8=review, 9=success
 
 const CHECKBOXES = [
@@ -63,6 +64,33 @@ function saveDraft(data) {
 
 function clearDraft() {
   localStorage.removeItem(DRAFT_KEY)
+}
+
+// ── submitted-names helpers ────────────────────────────────────────────────────
+
+function loadSubmittedNames() {
+  try {
+    const raw = localStorage.getItem(SUBMITTED_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function addSubmittedName(name) {
+  try {
+    const names = loadSubmittedNames()
+    const normalized = name.trim().toLowerCase()
+    if (!names.some(n => n.trim().toLowerCase() === normalized)) {
+      names.push(name.trim())
+      localStorage.setItem(SUBMITTED_KEY, JSON.stringify(names))
+    }
+  } catch { /* storage unavailable */ }
+}
+
+function isNameSubmitted(name) {
+  if (!name || name.trim().length < 2) return false
+  return loadSubmittedNames().some(
+    n => n.trim().toLowerCase() === name.trim().toLowerCase()
+  )
 }
 
 // ── shared sub-components ─────────────────────────────────────────────────────
@@ -130,8 +158,9 @@ function Field({ label, children }) {
 
 // ── Cover Step ────────────────────────────────────────────────────────────────
 
-function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFresh }) {
-  const ok = data.name && data.role && data.team
+function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFresh, allowResubmit, onAllowResubmit }) {
+  const ok             = data.name && data.role && data.team
+  const alreadySubmitted = !allowResubmit && isNameSubmitted(data.name)
 
   return (
     <div className="card">
@@ -143,8 +172,28 @@ function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFres
         </p>
       </div>
 
-      {/* Resume draft banner */}
-      {hasDraft && (
+      {/* Already-submitted banner — shown when typed name matches a submitted name */}
+      {alreadySubmitted && (
+        <div className="draft-banner submitted-banner">
+          <div className="draft-banner-left">
+            <span className="draft-icon">✅</span>
+            <div>
+              <div className="draft-banner-title">Review already submitted</div>
+              <div className="draft-banner-sub">
+                Submitted as <strong>{data.name}</strong> · you're all set!
+              </div>
+            </div>
+          </div>
+          <div className="draft-banner-actions">
+            <button className="btn-fresh" onClick={onAllowResubmit}>
+              Update My Answers
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Draft resume banner — only show if not blocked by already-submitted */}
+      {hasDraft && !alreadySubmitted && (
         <div className="draft-banner">
           <div className="draft-banner-left">
             <span className="draft-icon">💾</span>
@@ -190,7 +239,11 @@ function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFres
         <button
           className="btn-next"
           onClick={onNext}
-          style={{ opacity: ok ? 1 : 0.45, pointerEvents: ok ? 'auto' : 'none' }}
+          disabled={alreadySubmitted}
+          style={{
+            opacity: (ok && !alreadySubmitted) ? 1 : 0.45,
+            pointerEvents: (ok && !alreadySubmitted) ? 'auto' : 'none',
+          }}
         >
           Let's Go 🎬
         </button>
@@ -767,6 +820,7 @@ export default function App() {
   const [returnToReview, setReturnToReview] = useState(false)
   const [submitting, setSubmitting]         = useState(false)
   const [submitError, setSubmitError]       = useState('')
+  const [allowResubmit, setAllowResubmit]   = useState(false)
 
   // Auto-save on every data change
   const updateData = (newData) => {
@@ -809,6 +863,8 @@ export default function App() {
         body: JSON.stringify({ ...data, startupChecks: [...data.startupChecks] }),
       })
       clearDraft()
+      addSubmittedName(data.name)   // add to per-device submitted names list
+      setAllowResubmit(false)
       setStep(9)
     } catch {
       setSubmitError('Connection error. Please check your internet and try again.')
@@ -820,6 +876,7 @@ export default function App() {
   const restart = () => {
     clearDraft()
     setData(initialData)
+    setAllowResubmit(false)
     setStep(0)
   }
 
@@ -832,6 +889,8 @@ export default function App() {
       hasDraft={hasDraft}
       onResumeDraft={handleResumeDraft}
       onStartFresh={handleStartFresh}
+      allowResubmit={allowResubmit}
+      onAllowResubmit={() => setAllowResubmit(true)}
     />,
     <HighlightStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
     <PlotTwistStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
