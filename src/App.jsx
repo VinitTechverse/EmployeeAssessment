@@ -1,9 +1,6 @@
 import { useState } from 'react'
 import './App.css'
-
-// ── constants ─────────────────────────────────────────────────────────────────
-
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPDstLHE9EbCGl1OCfkgRaX2cbmx6E_uPRyebVzgMC9NTQ6pNdbnU0tlIHl9EhCQ/exec'
+import { APPS_SCRIPT_URL } from './config'
 const DRAFT_KEY      = 'rt_review_2026_draft'
 const SUBMITTED_KEY  = 'rt_review_2026_submitted'
 const TOTAL_STEPS = 10  // 0=cover, 1-7=sections, 8=review, 9=success
@@ -19,16 +16,9 @@ const CHECKBOXES = [
 
 const YEAR_EMOJIS = ['🚀', '🔥', '⚡', '💡', '😤', '🌟', '😅', '🎯', '🧠', '💪', '🎉', '🌊']
 
-const RATING_LABELS = [
-  { key: 'r1', label: '1', desc: 'Needs Improvement' },
-  { key: 'r2', label: '2', desc: 'Developing' },
-  { key: 'r3', label: '3', desc: 'Solid' },
-  { key: 'r4', label: '4', desc: 'Strong' },
-  { key: 'r5', label: '5', desc: 'Outstanding' },
-]
 
 const initialData = {
-  name: '', role: '', team: '',
+  name: '', email: '', role: '', team: '',
   wins: ['', '', ''], impact: '',
   challenge: '', fix: '', challengeLearn: '',
   skills: [{ skill: '', usage: '' }],
@@ -36,7 +26,6 @@ const initialData = {
   teamContrib: '', teamMoment: '',
   brag: '', goal1: '', goal2: '', explore: '',
   qfProud: '', qfBetter: '', qfEasier: '', yearEmoji: '',
-  rating: '', managerComments: '',
 }
 
 // ── localStorage helpers ───────────────────────────────────────────────────────
@@ -159,7 +148,7 @@ function Field({ label, children }) {
 // ── Cover Step ────────────────────────────────────────────────────────────────
 
 function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFresh, allowResubmit, onAllowResubmit }) {
-  const ok             = data.name && data.role && data.team
+  const ok             = data.name && data.email && data.role && data.team
   const alreadySubmitted = !allowResubmit && isNameSubmitted(data.name)
 
   return (
@@ -215,6 +204,15 @@ function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFres
           placeholder="e.g. Priya Sharma"
           value={data.name}
           onChange={e => setData({ ...data, name: e.target.value })}
+        />
+      </Field>
+      <Field label="Work Email">
+        <input
+          className="field-input"
+          type="email"
+          placeholder="e.g. priya@radianttechverse.com"
+          value={data.email}
+          onChange={e => setData({ ...data, email: e.target.value })}
         />
       </Field>
       <Field label="Role">
@@ -605,37 +603,6 @@ function QuickFireStep({ data, setData, onNext, onBack }) {
         </div>
       </div>
 
-      <div className="divider" />
-
-      <div className="manager-section">
-        <h3>🔒 Manager Review — Internal Only</h3>
-        <Field label="Overall Performance Rating">
-          <div className="rating-row">
-            {RATING_LABELS.map(({ key, label, desc }) => (
-              <button
-                key={key}
-                className={`rating-btn ${key} ${data.rating === label ? 'selected' : ''}`}
-                onClick={() => setData({ ...data, rating: label })}
-                title={desc}
-              >
-                {label}
-                <br />
-                <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.8 }}>{desc}</span>
-              </button>
-            ))}
-          </div>
-        </Field>
-        <Field label="Manager Comments">
-          <textarea
-            className="field-textarea"
-            placeholder="Strengths, areas of improvement, overall thoughts…"
-            value={data.managerComments}
-            onChange={e => setData({ ...data, managerComments: e.target.value })}
-            rows={3}
-          />
-        </Field>
-      </div>
-
       <NavRow step={7} onBack={onBack} onNext={onNext} nextLabel="Review & Submit →" />
     </div>
   )
@@ -717,6 +684,10 @@ function ReviewStep({ data, onEdit, onBack, onSubmit, submitting, submitError })
         <div className="review-identity-item">
           <span className="review-identity-label">Name</span>
           <span className="review-identity-value">{data.name}</span>
+        </div>
+        <div className="review-identity-item">
+          <span className="review-identity-label">Email</span>
+          <span className="review-identity-value">{data.email}</span>
         </div>
         <div className="review-identity-item">
           <span className="review-identity-label">Role</span>
