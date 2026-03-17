@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import './App.css'
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── constants ─────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 9   // 0 = cover, 1-7 = sections, 8 = success
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPDstLHE9EbCGl1OCfkgRaX2cbmx6E_uPRyebVzgMC9NTQ6pNdbnU0tlIHl9EhCQ/exec'
+const DRAFT_KEY = 'rt_review_2026_draft'
+const TOTAL_STEPS = 10  // 0=cover, 1-7=sections, 8=review, 9=success
 
 const CHECKBOXES = [
   'Took ownership of a feature or task',
@@ -24,22 +26,63 @@ const RATING_LABELS = [
   { key: 'r5', label: '5', desc: 'Outstanding' },
 ]
 
-// ── sub-components ────────────────────────────────────────────────────────────
+const initialData = {
+  name: '', role: '', team: '',
+  wins: ['', '', ''], impact: '',
+  challenge: '', fix: '', challengeLearn: '',
+  skills: [{ skill: '', usage: '' }],
+  startupChecks: new Set(), startupStory: '',
+  teamContrib: '', teamMoment: '',
+  brag: '', goal1: '', goal2: '', explore: '',
+  qfProud: '', qfBetter: '', qfEasier: '', yearEmoji: '',
+  rating: '', managerComments: '',
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────────
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    parsed.startupChecks = new Set(parsed.startupChecks || [])
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function saveDraft(data) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      ...data,
+      startupChecks: [...data.startupChecks],
+    }))
+  } catch { /* storage full or unavailable */ }
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY)
+}
+
+// ── shared sub-components ─────────────────────────────────────────────────────
 
 function ProgressBar({ step }) {
   const STEP_NAMES = [
     'Intro', 'Highlight Reel', 'Plot Twist', 'Level Up',
-    'Startup Energy', 'Team Player', 'Brag a Little', 'Goals', 'Quick Fire',
+    'Startup Energy', 'Team Player', 'Brag a Little', 'Quick Fire',
   ]
-  const pct = step === 0 ? 0 : Math.round((step / (TOTAL_STEPS - 1)) * 100)
+  // progress bar covers steps 0-7 only (8 dots)
+  const clampedStep = Math.min(step, 7)
+  const pct = clampedStep === 0 ? 0 : Math.round((clampedStep / 7) * 100)
 
   return (
     <div className="progress-wrap">
       <div className="progress-meta">
         <span className="progress-step-label">
-          {step === 0 ? 'Get Started' : STEP_NAMES[step]}
+          {clampedStep === 0 ? 'Get Started' : STEP_NAMES[clampedStep]}
         </span>
-        <span>{step === 0 ? '' : `${pct}% complete`}</span>
+        <span>{clampedStep === 0 ? '' : `${pct}% complete`}</span>
       </div>
       <div className="progress-track">
         <div className="progress-fill" style={{ width: `${pct}%` }} />
@@ -48,7 +91,7 @@ function ProgressBar({ step }) {
         {STEP_NAMES.map((_, i) => (
           <button
             key={i}
-            className={`step-dot ${i === step ? 'active' : i < step ? 'done' : ''}`}
+            className={`step-dot ${i === clampedStep ? 'active' : i < clampedStep ? 'done' : ''}`}
             aria-label={STEP_NAMES[i]}
           />
         ))}
@@ -57,13 +100,21 @@ function ProgressBar({ step }) {
   )
 }
 
-function NavRow({ step, onBack, onNext, nextLabel = 'Continue →' }) {
+function NavRow({ step, onBack, onNext, nextLabel = 'Continue →', nextDisabled = false }) {
   return (
     <div className="nav-row">
-      {step > 1 ? (
-        <button className="btn-back" onClick={onBack}>← Back</button>
-      ) : <div />}
-      <button className="btn-next" onClick={onNext}>{nextLabel}</button>
+      {step > 0
+        ? <button className="btn-back" onClick={onBack}>← Back</button>
+        : <div />
+      }
+      <button
+        className="btn-next"
+        onClick={onNext}
+        disabled={nextDisabled}
+        style={{ opacity: nextDisabled ? 0.5 : 1 }}
+      >
+        {nextLabel}
+      </button>
     </div>
   )
 }
@@ -79,7 +130,7 @@ function Field({ label, children }) {
 
 // ── Cover Step ────────────────────────────────────────────────────────────────
 
-function CoverStep({ data, setData, onNext }) {
+function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFresh }) {
   const ok = data.name && data.role && data.team
 
   return (
@@ -91,6 +142,23 @@ function CoverStep({ data, setData, onNext }) {
           Self Reflection Form · 2025–26 · Takes ~8 minutes to fill
         </p>
       </div>
+
+      {/* Resume draft banner */}
+      {hasDraft && (
+        <div className="draft-banner">
+          <div className="draft-banner-left">
+            <span className="draft-icon">💾</span>
+            <div>
+              <div className="draft-banner-title">You have a saved draft</div>
+              <div className="draft-banner-sub">Pick up right where you left off</div>
+            </div>
+          </div>
+          <div className="draft-banner-actions">
+            <button className="btn-resume" onClick={onResumeDraft}>Resume →</button>
+            <button className="btn-fresh" onClick={onStartFresh}>Start Fresh</button>
+          </div>
+        </div>
+      )}
 
       <Field label="Your Name">
         <input
@@ -433,7 +501,7 @@ function BragGoalsStep({ data, setData, onNext, onBack }) {
 
 function QuickFireStep({ data, setData, onNext, onBack }) {
   const quickFields = [
-    { key: 'qfProud', emoji: '🏆', q: 'One thing I\'m proud of this year' },
+    { key: 'qfProud',  emoji: '🏆', q: "One thing I'm proud of this year" },
     { key: 'qfBetter', emoji: '📚', q: 'One thing I want to get better at' },
     { key: 'qfEasier', emoji: '🛠️', q: 'One thing that would make my work easier' },
   ]
@@ -515,7 +583,147 @@ function QuickFireStep({ data, setData, onNext, onBack }) {
         </Field>
       </div>
 
-      <NavRow step={7} onBack={onBack} onNext={onNext} nextLabel="Submit Review ✓" />
+      <NavRow step={7} onBack={onBack} onNext={onNext} nextLabel="Review & Submit →" />
+    </div>
+  )
+}
+
+// ── Step 8: Review ────────────────────────────────────────────────────────────
+
+function ReviewStep({ data, onEdit, onBack, onSubmit, submitting, submitError }) {
+  const sections = [
+    {
+      step: 1, emoji: '🎬', title: 'Highlight Reel',
+      rows: [
+        { label: 'Win #1', value: data.wins?.[0] },
+        { label: 'Win #2', value: data.wins?.[1] },
+        { label: 'Win #3', value: data.wins?.[2] },
+        { label: 'Impact', value: data.impact },
+      ],
+    },
+    {
+      step: 2, emoji: '🧩', title: 'Plot Twist',
+      rows: [
+        { label: 'Challenge', value: data.challenge },
+        { label: 'How fixed', value: data.fix },
+        { label: 'Learned', value: data.challengeLearn },
+      ],
+    },
+    {
+      step: 3, emoji: '📈', title: 'Level Up',
+      rows: (data.skills || [])
+        .filter(s => s.skill || s.usage)
+        .map(s => ({ label: s.skill, value: s.usage })),
+    },
+    {
+      step: 4, emoji: '⚡', title: 'Startup Energy',
+      rows: [
+        { label: 'Actions', value: [...(data.startupChecks || [])].join(' · ') },
+        { label: 'Story', value: data.startupStory },
+      ],
+    },
+    {
+      step: 5, emoji: '🤝', title: 'Team Player',
+      rows: [
+        { label: 'Contribution', value: data.teamContrib },
+        { label: 'Proud moment', value: data.teamMoment },
+      ],
+    },
+    {
+      step: 6, emoji: '😎', title: 'Brag + Goals',
+      rows: [
+        { label: 'Brag', value: data.brag },
+        { label: 'Goal #1', value: data.goal1 },
+        { label: 'Goal #2', value: data.goal2 },
+        { label: 'Explore', value: data.explore },
+      ],
+    },
+    {
+      step: 7, emoji: '⚡', title: 'Quick Fire',
+      rows: [
+        { label: 'Proud of', value: data.qfProud },
+        { label: 'Get better at', value: data.qfBetter },
+        { label: 'Make work easier', value: data.qfEasier },
+        { label: 'Year emoji', value: data.yearEmoji },
+      ],
+    },
+  ]
+
+  return (
+    <div className="card">
+      <div className="step-header">
+        <span className="step-emoji">📋</span>
+        <h2 className="step-title">Review Your Answers</h2>
+        <p className="step-desc">
+          Everything look good? Hit <strong style={{ color: '#fff' }}>Edit</strong> on any section to make changes, then submit when ready.
+        </p>
+      </div>
+
+      {/* Identity row */}
+      <div className="review-identity">
+        <div className="review-identity-item">
+          <span className="review-identity-label">Name</span>
+          <span className="review-identity-value">{data.name}</span>
+        </div>
+        <div className="review-identity-item">
+          <span className="review-identity-label">Role</span>
+          <span className="review-identity-value">{data.role}</span>
+        </div>
+        <div className="review-identity-item">
+          <span className="review-identity-label">Team</span>
+          <span className="review-identity-value">{data.team}</span>
+        </div>
+      </div>
+
+      {/* Sections */}
+      {sections.map(section => {
+        const filledRows = section.rows.filter(r => r.value)
+        return (
+          <div className="review-section" key={section.step}>
+            <div className="review-section-header">
+              <span className="review-section-title">
+                {section.emoji} {section.title}
+              </span>
+              <button className="btn-edit" onClick={() => onEdit(section.step)}>
+                ✏️ Edit
+              </button>
+            </div>
+            {filledRows.length > 0 ? (
+              <div className="review-rows">
+                {filledRows.map((row, i) => (
+                  <div className="review-row" key={i}>
+                    <span className="review-label">{row.label}</span>
+                    <span className="review-value">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="review-empty">Nothing filled in yet — tap Edit to add.</p>
+            )}
+          </div>
+        )
+      })}
+
+      {submitError && (
+        <div className="submit-error">
+          ⚠️ {submitError}
+        </div>
+      )}
+
+      <div className="nav-row" style={{ marginTop: 32 }}>
+        <button className="btn-back" onClick={onBack}>← Back</button>
+        <button
+          className="btn-next btn-submit"
+          onClick={onSubmit}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <><span className="spinner" /> Submitting…</>
+          ) : (
+            '✓ Submit Review'
+          )}
+        </button>
+      </div>
     </div>
   )
 }
@@ -528,12 +736,13 @@ function SuccessScreen({ data, onRestart }) {
       <span className="success-icon">🎉</span>
       <h2>You did it, {data.name?.split(' ')[0]}!</h2>
       <p>
-        Your 2025–26 review has been submitted. <br />
+        Your 2025–26 review has been submitted successfully. <br />
         The team at Radiant Techverse thanks you for taking the time to reflect.
       </p>
 
       <div className="success-chips">
         <div className="success-chip">✅ Self review submitted</div>
+        <div className="success-chip">📊 Saved to Google Sheets</div>
         <div className="success-chip">📋 7 sections completed</div>
         {data.yearEmoji && <div className="success-chip">Your year: {data.yearEmoji}</div>}
         {data.startupChecks?.size > 0 && (
@@ -550,37 +759,100 @@ function SuccessScreen({ data, onRestart }) {
 
 // ── Root App ──────────────────────────────────────────────────────────────────
 
-const initialData = {
-  name: '', role: '', team: '',
-  wins: ['', '', ''], impact: '',
-  challenge: '', fix: '', challengeLearn: '',
-  skills: [{ skill: '', usage: '' }],
-  startupChecks: new Set(), startupStory: '',
-  teamContrib: '', teamMoment: '',
-  brag: '', goal1: '', goal2: '', explore: '',
-  qfProud: '', qfBetter: '', qfEasier: '', yearEmoji: '',
-  rating: '', managerComments: '',
-}
-
 export default function App() {
-  const [step, setStep] = useState(0)
-  const [data, setData] = useState(initialData)
+  const savedDraft = loadDraft()
+  const [step, setStep]           = useState(0)
+  const [data, setData]           = useState(savedDraft || initialData)
+  const [hasDraft]                = useState(!!savedDraft)
+  const [returnToReview, setReturnToReview] = useState(false)
+  const [submitting, setSubmitting]         = useState(false)
+  const [submitError, setSubmitError]       = useState('')
 
-  const next = () => setStep(s => Math.min(s + 1, TOTAL_STEPS - 1))
+  // Auto-save on every data change
+  const updateData = (newData) => {
+    saveDraft(newData)
+    setData(newData)
+  }
+
+  const next = () => {
+    if (returnToReview) {
+      setReturnToReview(false)
+      setStep(8)
+    } else {
+      setStep(s => Math.min(s + 1, TOTAL_STEPS - 1))
+    }
+  }
+
   const back = () => setStep(s => Math.max(s - 1, 0))
-  const restart = () => { setData(initialData); setStep(0) }
+
+  const editSection = (targetStep) => {
+    setReturnToReview(true)
+    setStep(targetStep)
+  }
+
+  const handleResumeDraft = () => setStep(1)
+
+  const handleStartFresh = () => {
+    clearDraft()
+    setData(initialData)
+    setStep(1)
+  }
+
+  const submitForm = async () => {
+    setSubmitting(true)
+    setSubmitError('')
+    try {
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',  // Google Apps Script requires no-cors from browser
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, startupChecks: [...data.startupChecks] }),
+      })
+      clearDraft()
+      setStep(9)
+    } catch {
+      setSubmitError('Connection error. Please check your internet and try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const restart = () => {
+    clearDraft()
+    setData(initialData)
+    setStep(0)
+  }
+
+  // next label changes when returning from review
+  const nextLabel = returnToReview ? 'Save & Return to Review →' : 'Continue →'
 
   const steps = [
-    <CoverStep data={data} setData={setData} onNext={next} />,
-    <HighlightStep data={data} setData={setData} onNext={next} onBack={back} />,
-    <PlotTwistStep data={data} setData={setData} onNext={next} onBack={back} />,
-    <LevelUpStep data={data} setData={setData} onNext={next} onBack={back} />,
-    <StartupEnergyStep data={data} setData={setData} onNext={next} onBack={back} />,
-    <TeamPlayerStep data={data} setData={setData} onNext={next} onBack={back} />,
-    <BragGoalsStep data={data} setData={setData} onNext={next} onBack={back} />,
-    <QuickFireStep data={data} setData={setData} onNext={next} onBack={back} />,
+    <CoverStep
+      data={data} setData={updateData} onNext={next}
+      hasDraft={hasDraft}
+      onResumeDraft={handleResumeDraft}
+      onStartFresh={handleStartFresh}
+    />,
+    <HighlightStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
+    <PlotTwistStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
+    <LevelUpStep      data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
+    <StartupEnergyStep data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
+    <TeamPlayerStep   data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
+    <BragGoalsStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
+    <QuickFireStep    data={data} setData={updateData} onNext={next} onBack={back} />,
+    <ReviewStep
+      data={data}
+      onEdit={editSection}
+      onBack={back}
+      onSubmit={submitForm}
+      submitting={submitting}
+      submitError={submitError}
+    />,
     <SuccessScreen data={data} onRestart={restart} />,
   ]
+
+  // Show progress bar only during form steps (0–7)
+  const showProgress = step < 8
 
   return (
     <div className="app">
@@ -590,7 +862,7 @@ export default function App() {
         <p>Reflect · Celebrate · Plan what's next</p>
       </header>
 
-      {step < TOTAL_STEPS - 1 && <ProgressBar step={step} />}
+      {showProgress && <ProgressBar step={step} />}
 
       {steps[step]}
     </div>

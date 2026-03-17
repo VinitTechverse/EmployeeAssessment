@@ -676,6 +676,223 @@
   background: rgba(99,102,241,0.2);
 }
 
+/* ---- Draft resume banner ---- */
+.draft-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.draft-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.draft-icon {
+  font-size: 24px;
+}
+
+.draft-banner-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.draft-banner-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.draft-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-resume {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 12px rgba(99,102,241,0.3);
+}
+.btn-resume:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(99,102,241,0.45);
+}
+
+.btn-fresh {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+}
+.btn-fresh:hover {
+  border-color: rgba(255,255,255,0.15);
+  color: var(--text);
+  background: var(--surface2);
+}
+
+/* ---- Review screen ---- */
+.review-identity {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.review-identity-item {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.review-identity-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.review-identity-value {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.review-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.review-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+
+.review-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.btn-edit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(99,102,241,0.1);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 6px;
+  padding: 5px 12px;
+  transition: all 0.2s ease;
+}
+.btn-edit:hover {
+  background: rgba(99,102,241,0.18);
+  border-color: rgba(99,102,241,0.4);
+}
+
+.review-rows {
+  padding: 4px 0;
+}
+
+.review-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.review-row:last-child {
+  border-bottom: none;
+}
+
+.review-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding-top: 1px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.review-value {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.review-empty {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 12px 16px;
+  font-style: italic;
+}
+
+/* ---- Submit error & spinner ---- */
+.submit-error {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-sm);
+  color: #f87171;
+  font-size: 13.5px;
+  padding: 12px 16px;
+  margin-top: 20px;
+  line-height: 1.5;
+}
+
+.btn-submit {
+  max-width: 200px;
+}
+
+.btn-submit:disabled {
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 600px) {
   .card {
