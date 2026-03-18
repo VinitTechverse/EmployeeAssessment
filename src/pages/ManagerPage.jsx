@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { jsPDF } from 'jspdf'
 import '../manager.css'
 import { APPS_SCRIPT_URL } from '../config'
+import { useTheme, ThemeToggle } from '../useTheme.jsx'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -103,6 +104,7 @@ function PinLogin({ onSuccess }) {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function ManagerPage() {
+  const { theme, toggle } = useTheme()
   const [authed, setAuthed] = useState(
     () => sessionStorage.getItem(PIN_SESSION_KEY) === '1'
   )
@@ -425,6 +427,7 @@ export default function ManagerPage() {
           <h1 className="mgr-header-title">Manager Dashboard</h1>
         </div>
         <div className="mgr-header-actions">
+          <ThemeToggle theme={theme} onToggle={toggle} />
           <button
             className="mgr-btn-action"
             onClick={handleExportCSV}

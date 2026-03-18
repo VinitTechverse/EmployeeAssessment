@@ -32,6 +32,13 @@
   z-index: 1;
 }
 
+/* Theme toggle floats top-right inside the header */
+.header-theme-toggle {
+  position: absolute;
+  top: 40px;
+  right: 0;
+}
+
 .header-badge {
   display: inline-flex;
   align-items: center;

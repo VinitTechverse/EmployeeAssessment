@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import { APPS_SCRIPT_URL } from './config'
+import { useTheme, ThemeToggle } from './useTheme.jsx'
 const DRAFT_KEY      = 'rt_review_2026_draft'
 const SUBMITTED_KEY  = 'rt_review_2026_submitted'
 const TOTAL_STEPS = 10  // 0=cover, 1-7=sections, 8=review, 9=success
@@ -784,6 +785,7 @@ function SuccessScreen({ data, onRestart }) {
 // ── Root App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { theme, toggle } = useTheme()
   const savedDraft = loadDraft()
   const [step, setStep]           = useState(0)
   const [data, setData]           = useState(savedDraft || initialData)
@@ -887,6 +889,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
+        <ThemeToggle theme={theme} onToggle={toggle} className="header-theme-toggle" />
         <div className="header-badge">✦ Radiant Techverse</div>
         <h1>Year in Review 2025–26</h1>
         <p>Reflect · Celebrate · Plan what's next</p>
