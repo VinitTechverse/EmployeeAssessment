@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './App.css'
-import { APPS_SCRIPT_URL, REVIEW_CYCLE, REVIEW_DEADLINE } from './config'
+import { APPS_SCRIPT_URL, REVIEW_CYCLE } from './config'
 import { useTheme, ThemeToggle } from './useTheme.jsx'
 const DRAFT_KEY      = 'rt_review_2026_draft'
 const SUBMITTED_KEY  = 'rt_review_2026_submitted'
@@ -146,29 +146,21 @@ function Field({ label, children }) {
   )
 }
 
-// ── Deadline Banner ───────────────────────────────────────────────────────────
+// ── Deadline Banner (live from Config sheet) ──────────────────────────────────
 
-function DeadlineBanner() {
-  if (!REVIEW_DEADLINE) return null
-  const deadline  = new Date(REVIEW_DEADLINE)
-  const now       = new Date()
-  const msLeft    = deadline.setHours(23, 59, 59, 999) - now
-  const daysLeft  = Math.ceil(msLeft / 86400000)
-
-  if (daysLeft < 0) {
-    return (
-      <div className="deadline-banner deadline-closed">
-        <span className="dl-icon">🔒</span>
-        <span className="dl-text">This review form is <strong>closed</strong> — the deadline has passed.</span>
-      </div>
-    )
-  }
+function DeadlineBanner({ deadline }) {
+  if (!deadline) return null
+  const dl      = new Date(deadline)
+  const now     = new Date()
+  const msLeft  = dl.setHours(23, 59, 59, 999) - now
+  const daysLeft= Math.ceil(msLeft / 86400000)
+  if (daysLeft < 0) return null  // form is already showing ClosedScreen when past deadline
 
   const urgency  = daysLeft <= 2 ? 'urgent' : daysLeft <= 7 ? 'soon' : 'ok'
   const daysText = daysLeft === 0 ? 'Last day to submit!'
     : daysLeft === 1 ? '1 day left'
     : `${daysLeft} days left`
-  const dateStr  = new Date(REVIEW_DEADLINE).toLocaleDateString('en-IN', {
+  const dateStr  = new Date(deadline).toLocaleDateString('en-IN', {
     day: 'numeric', month: 'long', year: 'numeric',
   })
 
@@ -183,9 +175,81 @@ function DeadlineBanner() {
   )
 }
 
+// ── Closed Screen (form locked or deadline passed) ────────────────────────────
+
+function ClosedScreen({ deadline, onExtensionGranted }) {
+  const [name, setName]       = useState('')
+  const [checking, setChecking] = useState(false)
+  const [extError, setExtError] = useState('')
+
+  const dateStr = deadline
+    ? new Date(deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+
+  const handleCheck = useCallback(async () => {
+    if (!name.trim()) return
+    setChecking(true)
+    setExtError('')
+    try {
+      const res  = await fetch(`${APPS_SCRIPT_URL}?action=getExtension&name=${encodeURIComponent(name.trim())}`)
+      const json = await res.json()
+      if (json.ok && json.extensionDate) {
+        const extDate = new Date(json.extensionDate)
+        const today   = new Date(); today.setHours(0, 0, 0, 0)
+        if (extDate >= today) {
+          onExtensionGranted(name.trim())
+        } else {
+          setExtError(`Your extension (${json.extensionDate}) has also passed.`)
+        }
+      } else {
+        setExtError('No active extension found for this name. Contact your manager.')
+      }
+    } catch {
+      setExtError('Could not check. Please try again.')
+    } finally {
+      setChecking(false)
+    }
+  }, [name, onExtensionGranted])
+
+  return (
+    <div className="card closed-screen">
+      <div className="step-header">
+        <span className="step-emoji">🔒</span>
+        <h2 className="step-title">Submissions Closed</h2>
+        <p className="step-desc">
+          The review window for this cycle has ended
+          {dateStr ? ` on ${dateStr}` : ''}.
+          <br />Reach out to your manager if you need an extension.
+        </p>
+      </div>
+      <div className="closed-ext-box">
+        <p className="closed-ext-label">Have an extension? Enter your name to check:</p>
+        <div className="closed-ext-row">
+          <input
+            className="field-input"
+            placeholder="Your full name…"
+            value={name}
+            onChange={e => { setName(e.target.value); setExtError('') }}
+            onKeyDown={e => e.key === 'Enter' && handleCheck()}
+          />
+          <button
+            className="btn-next"
+            onClick={handleCheck}
+            disabled={checking || !name.trim()}
+            style={{ opacity: name.trim() ? 1 : 0.5 }}
+          >
+            {checking ? 'Checking…' : 'Check →'}
+          </button>
+        </div>
+        {extError && <div className="closed-ext-error">{extError}</div>}
+      </div>
+    </div>
+  )
+}
+
 // ── Cover Step ────────────────────────────────────────────────────────────────
 
-function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFresh, allowResubmit, onAllowResubmit }) {
+function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFresh, allowResubmit, onAllowResubmit, deadline }) {
   const ok             = data.name && data.email && data.role && data.team
   const alreadySubmitted = !allowResubmit && isNameSubmitted(data.name)
 
@@ -199,7 +263,7 @@ function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFres
         </p>
       </div>
 
-      <DeadlineBanner />
+      <DeadlineBanner deadline={deadline} />
 
       {/* Already-submitted banner — shown when typed name matches a submitted name */}
       {alreadySubmitted && (
@@ -826,6 +890,21 @@ function SuccessScreen({ data, onRestart }) {
 export default function App() {
   const { theme, toggle } = useTheme()
   const savedDraft = loadDraft()
+
+  // ── Site config (fetched live from Config sheet) ───────────────────────────
+  const [siteConfig, setSiteConfig]     = useState({ deadline: '', form_locked: 'false', current_cycle: REVIEW_CYCLE })
+  const [configLoaded, setConfigLoaded] = useState(false)
+  const [extensionName, setExtensionName] = useState(null) // name that has been granted extension
+
+  useEffect(() => {
+    fetch(`${APPS_SCRIPT_URL}?action=getConfig`)
+      .then(r => r.json())
+      .then(json => { if (json.ok) setSiteConfig(prev => ({ ...prev, ...json.config })) })
+      .catch(() => {}) // silent fail — use defaults
+      .finally(() => setConfigLoaded(true))
+  }, [])
+
+  // ── Form state ─────────────────────────────────────────────────────────────
   const [step, setStep]           = useState(0)
   const [data, setData]           = useState(savedDraft || initialData)
   const [hasDraft]                = useState(!!savedDraft)
@@ -834,48 +913,42 @@ export default function App() {
   const [submitError, setSubmitError]       = useState('')
   const [allowResubmit, setAllowResubmit]   = useState(false)
 
-  // Auto-save on every data change
-  const updateData = (newData) => {
-    saveDraft(newData)
-    setData(newData)
-  }
+  // ── Derived lock state ─────────────────────────────────────────────────────
+  const isLocked = siteConfig.form_locked === 'true'
+  const isDeadlinePassed = siteConfig.deadline
+    ? new Date() > new Date(siteConfig.deadline).setHours(23, 59, 59, 999)
+    : false
+  // Show closed screen when locked OR deadline passed (unless extension granted)
+  const showClosed = configLoaded && (isLocked || isDeadlinePassed) && !extensionName
+
+  const updateData = (newData) => { saveDraft(newData); setData(newData) }
 
   const next = () => {
-    if (returnToReview) {
-      setReturnToReview(false)
-      setStep(8)
-    } else {
-      setStep(s => Math.min(s + 1, TOTAL_STEPS - 1))
-    }
+    if (returnToReview) { setReturnToReview(false); setStep(8) }
+    else { setStep(s => Math.min(s + 1, TOTAL_STEPS - 1)) }
   }
 
-  const back = () => setStep(s => Math.max(s - 1, 0))
-
-  const editSection = (targetStep) => {
-    setReturnToReview(true)
-    setStep(targetStep)
-  }
-
+  const back        = () => setStep(s => Math.max(s - 1, 0))
+  const editSection = (targetStep) => { setReturnToReview(true); setStep(targetStep) }
   const handleResumeDraft = () => setStep(1)
-
-  const handleStartFresh = () => {
-    clearDraft()
-    setData(initialData)
-    setStep(1)
-  }
+  const handleStartFresh  = () => { clearDraft(); setData(initialData); setStep(1) }
 
   const submitForm = async () => {
     setSubmitting(true)
     setSubmitError('')
     try {
       await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',  // Google Apps Script requires no-cors from browser
+        method : 'POST',
+        mode   : 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, startupChecks: [...data.startupChecks], cycle: REVIEW_CYCLE }),
+        body   : JSON.stringify({
+          ...data,
+          startupChecks: [...data.startupChecks],
+          cycle: siteConfig.current_cycle || REVIEW_CYCLE,
+        }),
       })
       clearDraft()
-      addSubmittedName(data.name)   // add to per-device submitted names list
+      addSubmittedName(data.name)
       setAllowResubmit(false)
       setStep(9)
     } catch {
@@ -885,14 +958,8 @@ export default function App() {
     }
   }
 
-  const restart = () => {
-    clearDraft()
-    setData(initialData)
-    setAllowResubmit(false)
-    setStep(0)
-  }
+  const restart = () => { clearDraft(); setData(initialData); setAllowResubmit(false); setStep(0) }
 
-  // next label changes when returning from review
   const nextLabel = returnToReview ? 'Save & Return to Review →' : 'Continue →'
 
   const steps = [
@@ -903,6 +970,7 @@ export default function App() {
       onStartFresh={handleStartFresh}
       allowResubmit={allowResubmit}
       onAllowResubmit={() => setAllowResubmit(true)}
+      deadline={siteConfig.deadline}
     />,
     <HighlightStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
     <PlotTwistStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
@@ -912,17 +980,12 @@ export default function App() {
     <BragGoalsStep    data={data} setData={updateData} onNext={next} onBack={back} nextLabel={nextLabel} />,
     <QuickFireStep    data={data} setData={updateData} onNext={next} onBack={back} />,
     <ReviewStep
-      data={data}
-      onEdit={editSection}
-      onBack={back}
-      onSubmit={submitForm}
-      submitting={submitting}
-      submitError={submitError}
+      data={data} onEdit={editSection} onBack={back}
+      onSubmit={submitForm} submitting={submitting} submitError={submitError}
     />,
     <SuccessScreen data={data} onRestart={restart} />,
   ]
 
-  // Show progress bar only during form steps (0–7)
   const showProgress = step < 8
 
   return (
@@ -934,9 +997,29 @@ export default function App() {
         <p>Reflect · Celebrate · Plan what's next</p>
       </header>
 
-      {showProgress && <ProgressBar step={step} />}
+      {/* Show loading pulse while config fetches */}
+      {!configLoaded && (
+        <div className="card" style={{ textAlign: 'center', padding: '48px 24px', opacity: 0.6 }}>
+          <div className="mgr-spinner" style={{ margin: '0 auto 12px' }} />
+          <p style={{ margin: 0, color: 'var(--text-muted)' }}>Loading…</p>
+        </div>
+      )}
 
-      {steps[step]}
+      {/* Closed screen overrides the entire form */}
+      {configLoaded && showClosed && (
+        <ClosedScreen
+          deadline={siteConfig.deadline}
+          onExtensionGranted={(name) => { setExtensionName(name); setData(d => ({ ...d, name })) }}
+        />
+      )}
+
+      {/* Normal form flow */}
+      {configLoaded && !showClosed && (
+        <>
+          {showProgress && <ProgressBar step={step} />}
+          {steps[step]}
+        </>
+      )}
     </div>
   )
 }

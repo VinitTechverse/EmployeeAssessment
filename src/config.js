@@ -2,11 +2,9 @@ export const APPS_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbyPDstLHE9EbCGl1OCfkgRaX2cbmx6E_uPRyebVzgMC9NTQ6pNdbnU0tlIHl9EhCQ/exec'
 
 // ── Review cycle ──────────────────────────────────────────────────────────────
-// Change this string when starting a new review cycle (e.g. 'Q1 2026').
-// It is stored alongside every submission so the manager dashboard can filter
-// by cycle once multiple cycles accumulate in the sheet.
+// Fallback only — the live value is read from the Config sheet at runtime.
 export const REVIEW_CYCLE = 'Annual 2025-26'
 
-// ── Submission deadline ───────────────────────────────────────────────────────
-// ISO date string (YYYY-MM-DD).  Set to '' to hide the deadline banner entirely.
-export const REVIEW_DEADLINE = '2026-04-30'
+// NOTE: REVIEW_DEADLINE is no longer hardcoded here.
+// It is read live from the Config sheet so managers can change it from
+// the dashboard without a code deploy.
