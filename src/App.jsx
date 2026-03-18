@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import './App.css'
-import { APPS_SCRIPT_URL } from './config'
+import { APPS_SCRIPT_URL, REVIEW_CYCLE, REVIEW_DEADLINE } from './config'
 import { useTheme, ThemeToggle } from './useTheme.jsx'
 const DRAFT_KEY      = 'rt_review_2026_draft'
 const SUBMITTED_KEY  = 'rt_review_2026_submitted'
@@ -146,6 +146,43 @@ function Field({ label, children }) {
   )
 }
 
+// ── Deadline Banner ───────────────────────────────────────────────────────────
+
+function DeadlineBanner() {
+  if (!REVIEW_DEADLINE) return null
+  const deadline  = new Date(REVIEW_DEADLINE)
+  const now       = new Date()
+  const msLeft    = deadline.setHours(23, 59, 59, 999) - now
+  const daysLeft  = Math.ceil(msLeft / 86400000)
+
+  if (daysLeft < 0) {
+    return (
+      <div className="deadline-banner deadline-closed">
+        <span className="dl-icon">🔒</span>
+        <span className="dl-text">This review form is <strong>closed</strong> — the deadline has passed.</span>
+      </div>
+    )
+  }
+
+  const urgency  = daysLeft <= 2 ? 'urgent' : daysLeft <= 7 ? 'soon' : 'ok'
+  const daysText = daysLeft === 0 ? 'Last day to submit!'
+    : daysLeft === 1 ? '1 day left'
+    : `${daysLeft} days left`
+  const dateStr  = new Date(REVIEW_DEADLINE).toLocaleDateString('en-IN', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
+
+  return (
+    <div className={`deadline-banner deadline-${urgency}`}>
+      <span className="dl-icon">{daysLeft <= 2 ? '🚨' : '⏰'}</span>
+      <div className="dl-body">
+        <span className="dl-text">Deadline: <strong>{dateStr}</strong></span>
+        <span className="dl-pill">{daysText}</span>
+      </div>
+    </div>
+  )
+}
+
 // ── Cover Step ────────────────────────────────────────────────────────────────
 
 function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFresh, allowResubmit, onAllowResubmit }) {
@@ -161,6 +198,8 @@ function CoverStep({ data, setData, onNext, hasDraft, onResumeDraft, onStartFres
           Self Reflection Form · 2025–26 · Takes ~8 minutes to fill
         </p>
       </div>
+
+      <DeadlineBanner />
 
       {/* Already-submitted banner — shown when typed name matches a submitted name */}
       {alreadySubmitted && (
@@ -833,7 +872,7 @@ export default function App() {
         method: 'POST',
         mode: 'no-cors',  // Google Apps Script requires no-cors from browser
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, startupChecks: [...data.startupChecks] }),
+        body: JSON.stringify({ ...data, startupChecks: [...data.startupChecks], cycle: REVIEW_CYCLE }),
       })
       clearDraft()
       addSubmittedName(data.name)   // add to per-device submitted names list
