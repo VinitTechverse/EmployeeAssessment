@@ -1498,8 +1498,7 @@ export default function ManagerPage() {
             onClick={() => {
               storage.removeItem(PIN_SESSION_KEY)
               storage.removeItem(MGR_SESSION_KEY)
-              setAuthed(false)
-              setManagerInfo(null)
+              window.location.reload()
             }}
           >🔒 Lock</button>
         </div>
