@@ -222,9 +222,12 @@ function AnalyticsView({ employees, responses, managerInfo }) {
 
 // ── Calibration View ──────────────────────────────────────────────────────────
 
-function CalibrationView({ responses, onRatingChange }) {
+function CalibrationView({ responses, onSave }) {
   const [sortKey, setSortKey]         = useState('name')
   const [editingName, setEditingName] = useState(null)
+  const [editRating, setEditRating]   = useState('')
+  const [editComment, setEditComment] = useState('')
+  const [saving, setSaving]           = useState(false)
 
   const reviewed   = responses.filter(r => r.rating)
   const unreviewed = responses.filter(r => !r.rating)
@@ -240,8 +243,16 @@ function CalibrationView({ responses, onRatingChange }) {
     return 0
   })
 
-  const handleRatingSelect = (name, rating) => {
-    onRatingChange(name, rating)
+  const startEdit = (r) => {
+    setEditingName(r.name)
+    setEditRating(r.rating || '')
+    setEditComment(r.managerComments || '')
+  }
+
+  const handleSave = async (name) => {
+    setSaving(true)
+    await onSave(name, editRating, editComment)
+    setSaving(false)
     setEditingName(null)
   }
 
@@ -276,64 +287,97 @@ function CalibrationView({ responses, onRatingChange }) {
               <th>Department</th>
               <th>Rating</th>
               <th>Manager Comments</th>
+              <th></th>
             </tr>
           </thead>
           <tbody className="mgr-calib-tbody">
-            {sorted.map(r => (
-              <tr key={r.name} className="mgr-calib-tr">
-                <td className="mgr-calib-td mgr-calib-name-cell">
-                  <div className="mgr-calib-avatar">{r.name?.charAt(0)?.toUpperCase()}</div>
-                  <div>
-                    <div className="mgr-calib-emp-name">{r.name}</div>
-                    <div className="mgr-calib-emp-role">{r.role || '—'}</div>
-                  </div>
-                </td>
-                <td className="mgr-calib-td">{r.team || r.department || '—'}</td>
-                <td className="mgr-calib-td mgr-calib-rating-cell">
-                  {editingName === r.name ? (
-                    <div className="mgr-calib-rating-editor">
-                      {RATING_LABELS.map(({ label, desc }) => (
-                        <button
-                          key={label}
-                          className="mgr-calib-r-btn"
-                          style={{ borderColor: RATING_META[label]?.color, color: RATING_META[label]?.color }}
-                          title={desc}
-                          onClick={() => handleRatingSelect(r.name, label)}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                      <button
-                        className="mgr-calib-r-btn"
-                        style={{ opacity: 0.5 }}
-                        onClick={() => setEditingName(null)}
-                        title="Cancel"
-                      >✕</button>
+            {sorted.map(r => {
+              const isEditing = editingName === r.name
+              return (
+                <tr key={r.name} className={`mgr-calib-tr${isEditing ? ' mgr-calib-tr-editing' : ''}`}>
+                  <td className="mgr-calib-td mgr-calib-name-cell">
+                    <div className="mgr-calib-avatar">{r.name?.charAt(0)?.toUpperCase()}</div>
+                    <div>
+                      <div className="mgr-calib-emp-name">{r.name}</div>
+                      <div className="mgr-calib-emp-role">{r.role || '—'}</div>
                     </div>
-                  ) : (
-                    <span
-                      className="mgr-calib-rating-pill"
-                      style={{
-                        background: RATING_META[r.rating]?.color + '22',
-                        color: RATING_META[r.rating]?.color,
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => setEditingName(r.name)}
-                      title="Click to edit rating"
-                    >
-                      ★ {r.rating} – {RATING_META[r.rating]?.label}
-                    </span>
-                  )}
-                </td>
-                <td className="mgr-calib-td mgr-calib-comment">
-                  {r.managerComments
-                    ? r.managerComments.length > 60
-                      ? r.managerComments.slice(0, 60) + '…'
-                      : r.managerComments
-                    : <span style={{ opacity: 0.4 }}>—</span>}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="mgr-calib-td">{r.team || r.department || '—'}</td>
+                  <td className="mgr-calib-td mgr-calib-rating-cell">
+                    {isEditing ? (
+                      <div className="mgr-calib-rating-btns">
+                        {RATING_LABELS.map(({ label, desc }) => (
+                          <button
+                            key={label}
+                            className={`mgr-calib-r-btn${editRating === label ? ' mgr-calib-r-btn-active' : ''}`}
+                            style={{
+                              borderColor: RATING_META[label]?.color,
+                              color: editRating === label ? '#fff' : RATING_META[label]?.color,
+                              background: editRating === label ? RATING_META[label]?.color : 'transparent',
+                            }}
+                            title={desc}
+                            onClick={() => setEditRating(label)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <span
+                        className="mgr-calib-rating-pill"
+                        style={{ background: RATING_META[r.rating]?.color + '22', color: RATING_META[r.rating]?.color }}
+                      >
+                        ★ {r.rating} – {RATING_META[r.rating]?.label}
+                      </span>
+                    )}
+                  </td>
+                  <td className="mgr-calib-td mgr-calib-comment">
+                    {isEditing ? (
+                      <textarea
+                        className="mgr-calib-comment-input"
+                        value={editComment}
+                        onChange={e => setEditComment(e.target.value)}
+                        placeholder="Add manager comments…"
+                        rows={3}
+                      />
+                    ) : (
+                      r.managerComments
+                        ? r.managerComments.length > 80
+                          ? r.managerComments.slice(0, 80) + '…'
+                          : r.managerComments
+                        : <span style={{ opacity: 0.4 }}>No comments yet</span>
+                    )}
+                  </td>
+                  <td className="mgr-calib-td mgr-calib-actions-cell">
+                    {isEditing ? (
+                      <div className="mgr-calib-edit-actions">
+                        <button
+                          className="mgr-calib-save-btn"
+                          onClick={() => handleSave(r.name)}
+                          disabled={saving || !editRating}
+                        >
+                          {saving ? '…' : '✓ Save'}
+                        </button>
+                        <button
+                          className="mgr-calib-cancel-btn"
+                          onClick={() => setEditingName(null)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="mgr-calib-edit-btn"
+                        onClick={() => startEdit(r)}
+                        title="Edit rating & comments"
+                      >
+                        ✏️
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}
@@ -958,7 +1002,8 @@ export default function ManagerPage() {
   }
 
   // ── Calibration rating change ──────────────────────────────────────────────
-  const handleCalibrationRatingChange = async (name, rating) => {
+  const handleCalibrationSave = async (name, rating, comment) => {
+    const existing = responses.find(r => r.name?.trim().toLowerCase() === name.trim().toLowerCase())
     try {
       await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
@@ -968,14 +1013,14 @@ export default function ManagerPage() {
           type: 'manager_review',
           name,
           rating,
-          managerComments: '',
-          privateNotes: '',
+          managerComments: comment,
+          privateNotes: existing?.privateNotes || '',
           actor: managerInfo?.name || 'Manager',
         }),
       })
       setResponses(prev => prev.map(r =>
         r.name?.trim().toLowerCase() === name.trim().toLowerCase()
-          ? { ...r, rating }
+          ? { ...r, rating, managerComments: comment }
           : r
       ))
     } catch {
@@ -1508,7 +1553,7 @@ export default function ManagerPage() {
       {view === 'calibrate' && (
         <CalibrationView
           responses={visibleResponses.filter(r => r.name)}
-          onRatingChange={handleCalibrationRatingChange}
+          onSave={handleCalibrationSave}
         />
       )}
 

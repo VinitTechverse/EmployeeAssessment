@@ -1637,33 +1637,72 @@
 .mgr-calib-emp-name  { font-weight: 600; color: var(--text); }
 .mgr-calib-emp-role  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
-.mgr-calib-rating-cell { cursor: pointer; position: relative; }
+.mgr-calib-rating-cell { vertical-align: middle; }
 
 .mgr-calib-rating-pill {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 10px; border-radius: 999px;
   font-size: 12px; font-weight: 700;
   background: rgba(99,102,241,0.1);
-  transition: background 0.15s;
-}
-.mgr-calib-rating-pill:hover { background: rgba(99,102,241,0.2); }
-
-.mgr-calib-rating-editor {
-  display: flex; gap: 4px; flex-wrap: wrap;
-  position: absolute; top: 100%; left: 0; z-index: 10;
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  margin-top: 4px;
 }
 
+/* Edit mode: row highlight */
+.mgr-calib-tr-editing {
+  background: rgba(99,102,241,0.06) !important;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Rating buttons row (shown when editing) */
+.mgr-calib-rating-btns {
+  display: flex; gap: 4px; flex-wrap: nowrap;
+}
 .mgr-calib-r-btn {
-  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
-  background: transparent; color: var(--text); font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: all 0.15s;
+  width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid var(--border);
+  background: transparent; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
 }
-.mgr-calib-r-btn:hover { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); }
+.mgr-calib-r-btn:hover { opacity: 0.85; }
+.mgr-calib-r-btn-active { box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
 
-.mgr-calib-comment { font-size: 12px; color: var(--text-muted); max-width: 220px; }
+/* Comments cell */
+.mgr-calib-comment {
+  font-size: 12px; color: var(--text-muted);
+  max-width: 260px; word-break: break-word;
+}
+.mgr-calib-comment-input {
+  width: 100%; min-width: 180px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 12px;
+  font-family: inherit; padding: 8px 10px; resize: vertical;
+  outline: none; transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.mgr-calib-comment-input:focus { border-color: rgba(99,102,241,0.5); }
+
+/* Actions column */
+.mgr-calib-actions-cell { width: 90px; text-align: center; white-space: nowrap; }
+.mgr-calib-edit-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; padding: 4px 8px; border-radius: 6px;
+  opacity: 0.5; transition: opacity 0.15s, background 0.15s;
+}
+.mgr-calib-edit-btn:hover { opacity: 1; background: rgba(99,102,241,0.12); }
+
+.mgr-calib-edit-actions { display: flex; gap: 6px; align-items: center; }
+.mgr-calib-save-btn {
+  background: #10b981; color: #fff; border: none;
+  border-radius: 6px; padding: 5px 10px; font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.mgr-calib-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.mgr-calib-save-btn:hover:not(:disabled) { opacity: 0.85; }
+.mgr-calib-cancel-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  border-radius: 6px; padding: 5px 8px; font-size: 13px;
+  cursor: pointer; transition: background 0.15s;
+}
+.mgr-calib-cancel-btn:hover { background: rgba(255,255,255,0.06); }
 
 .mgr-calib-unreviewed-title {
   font-size: 12px; font-weight: 700; text-transform: uppercase;
