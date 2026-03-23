@@ -74,6 +74,28 @@
   gap: 12px;
 }
 
+.mgr-text-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 14px 16px;
+  text-align: left;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+.mgr-text-input:focus {
+  border-color: rgba(99,102,241,0.5);
+  background: var(--surface3);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+.mgr-text-input::placeholder { color: var(--text-dim); }
+.mgr-text-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .mgr-pin-input {
   width: 100%;
   background: var(--surface2);
@@ -87,6 +109,7 @@
   letter-spacing: 0.3em;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 .mgr-pin-input:focus {
   border-color: rgba(99,102,241,0.5);
@@ -98,6 +121,7 @@
   color: var(--text-dim);
   font-size: 14px;
 }
+.mgr-pin-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .mgr-pin-error {
   font-size: 13px;
@@ -122,10 +146,26 @@
   transition: all 0.25s ease;
   box-shadow: 0 4px 20px rgba(99,102,241,0.35);
 }
-.mgr-pin-btn:hover {
+.mgr-pin-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 8px 28px rgba(99,102,241,0.5);
 }
+.mgr-pin-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+.mgr-login-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── App Shell ──────────────────────────────────────────────────────────────── */
 

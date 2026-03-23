@@ -570,22 +570,30 @@ function BulkConfirmModal({ people, onConfirm, onCancel, sending, msg }) {
 // ── PIN Login ─────────────────────────────────────────────────────────────────
 
 function PinLogin({ onSuccess }) {
-  const [pin, setPin]     = useState('')
-  const [error, setError] = useState('')
-  const [shake, setShake] = useState(false)
+  const [email, setEmail]   = useState('')
+  const [pin, setPin]       = useState('')
+  const [error, setError]   = useState('')
+  const [shake, setShake]   = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (!email.trim()) { setError('Please enter your work email.'); return }
+    if (!pin.trim())   { setError('Please enter your PIN.'); return }
 
+    setLoading(true)
     try {
-      // First try the multi-manager API
-      const res = await fetch(`${APPS_SCRIPT_URL}?action=getManagerByPin&pin=${encodeURIComponent(pin)}`)
+      // Try multi-manager API (email + PIN)
+      const res  = await fetch(
+        `${APPS_SCRIPT_URL}?action=getManagerByPin&pin=${encodeURIComponent(pin)}&email=${encodeURIComponent(email.trim().toLowerCase())}`
+      )
       const json = await res.json()
       if (json.ok && json.manager) {
         const info = {
-          name: json.manager.name || 'Manager',
-          department: json.manager.department || '',
+          name:        json.manager.name || 'Manager',
+          email:       email.trim().toLowerCase(),
+          department:  json.manager.department || '',
           accessLevel: json.manager.accessLevel || 'manager',
         }
         sessionStorage.setItem(PIN_SESSION_KEY, '1')
@@ -595,19 +603,21 @@ function PinLogin({ onSuccess }) {
       }
     } catch {
       // API unavailable — fall through to env PIN check
+    } finally {
+      setLoading(false)
     }
 
-    // Fall back to env PIN
+    // Admin fallback: env PIN only (no email check)
     const correctPin = import.meta.env.VITE_MANAGER_PIN
     if (correctPin && pin === correctPin) {
-      const info = { name: 'Admin', department: '', accessLevel: 'admin' }
+      const info = { name: 'Admin', email: email.trim().toLowerCase(), department: '', accessLevel: 'admin' }
       sessionStorage.setItem(PIN_SESSION_KEY, '1')
       sessionStorage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
       onSuccess(info)
       return
     }
 
-    setError('Incorrect PIN. Try again.')
+    setError('Invalid email or PIN. Please check and try again.')
     setPin('')
     setShake(true)
     setTimeout(() => setShake(false), 500)
@@ -621,15 +631,26 @@ function PinLogin({ onSuccess }) {
         <p className="mgr-login-sub">Radiant Techverse · Year in Review 2025–26</p>
         <form onSubmit={handleSubmit} className="mgr-pin-form">
           <input
+            className="mgr-text-input"
+            type="email"
+            placeholder="Work email address"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setError('') }}
+            disabled={loading}
+            autoFocus
+          />
+          <input
             className="mgr-pin-input"
             type="password"
             placeholder="Enter PIN"
             value={pin}
             onChange={e => { setPin(e.target.value); setError('') }}
-            autoFocus
+            disabled={loading}
           />
           {error && <div className="mgr-pin-error">{error}</div>}
-          <button className="mgr-pin-btn" type="submit">Unlock →</button>
+          <button className="mgr-pin-btn" type="submit" disabled={loading}>
+            {loading ? <span className="mgr-login-spinner" /> : 'Unlock →'}
+          </button>
         </form>
       </div>
     </div>
