@@ -7,7 +7,9 @@ import { useTheme, ThemeToggle } from '../useTheme.jsx'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PIN_SESSION_KEY = 'rt_manager_pin_ok'
-const MGR_SESSION_KEY = 'rt_manager_info' // stores JSON {name, department, accessLevel}
+const MGR_SESSION_KEY = 'rt_manager_info' // stores JSON {name, email, department, accessLevel}
+// Use localStorage so session survives page refresh / address-bar navigation
+const storage = window.localStorage
 
 const RATING_LABELS = [
   { key: 'r1', label: '1', desc: 'Needs Improvement' },
@@ -596,8 +598,8 @@ function PinLogin({ onSuccess }) {
           department:  json.manager.department || '',
           accessLevel: json.manager.accessLevel || 'manager',
         }
-        sessionStorage.setItem(PIN_SESSION_KEY, '1')
-        sessionStorage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
+        storage.setItem(PIN_SESSION_KEY, '1')
+        storage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
         onSuccess(info)
         return   // setLoading intentionally NOT reset — component is about to unmount
       }
@@ -609,8 +611,8 @@ function PinLogin({ onSuccess }) {
     const correctPin = import.meta.env.VITE_MANAGER_PIN
     if (correctPin && pin === correctPin) {
       const info = { name: 'Admin', email: email.trim().toLowerCase(), department: '', accessLevel: 'admin' }
-      sessionStorage.setItem(PIN_SESSION_KEY, '1')
-      sessionStorage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
+      storage.setItem(PIN_SESSION_KEY, '1')
+      storage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
       onSuccess(info)
       return   // setLoading intentionally NOT reset — component is about to unmount
     }
@@ -663,11 +665,11 @@ export default function ManagerPage() {
 
   // Auth
   const [authed, setAuthed] = useState(
-    () => sessionStorage.getItem(PIN_SESSION_KEY) === '1'
+    () => storage.getItem(PIN_SESSION_KEY) === '1'
   )
   const [managerInfo, setManagerInfo] = useState(() => {
     try {
-      const raw = sessionStorage.getItem(MGR_SESSION_KEY)
+      const raw = storage.getItem(MGR_SESSION_KEY)
       return raw ? JSON.parse(raw) : null
     } catch { return null }
   })
@@ -1456,8 +1458,8 @@ export default function ManagerPage() {
           <button
             className="mgr-btn-logout"
             onClick={() => {
-              sessionStorage.removeItem(PIN_SESSION_KEY)
-              sessionStorage.removeItem(MGR_SESSION_KEY)
+              storage.removeItem(PIN_SESSION_KEY)
+              storage.removeItem(MGR_SESSION_KEY)
               setAuthed(false)
               setManagerInfo(null)
             }}
