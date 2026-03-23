@@ -599,12 +599,10 @@ function PinLogin({ onSuccess }) {
         sessionStorage.setItem(PIN_SESSION_KEY, '1')
         sessionStorage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
         onSuccess(info)
-        return
+        return   // setLoading intentionally NOT reset — component is about to unmount
       }
     } catch {
       // API unavailable — fall through to env PIN check
-    } finally {
-      setLoading(false)
     }
 
     // Admin fallback: env PIN only (no email check)
@@ -614,9 +612,10 @@ function PinLogin({ onSuccess }) {
       sessionStorage.setItem(PIN_SESSION_KEY, '1')
       sessionStorage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
       onSuccess(info)
-      return
+      return   // setLoading intentionally NOT reset — component is about to unmount
     }
 
+    setLoading(false)
     setError('Invalid email or PIN. Please check and try again.')
     setPin('')
     setShake(true)
@@ -788,14 +787,19 @@ export default function ManagerPage() {
 
   const allPeople = [...employees, ...extraPeople]
 
-  // Department-scoped visibility
+  // Manager-scoped visibility:
+  // Primary: match employees whose Team sheet "Manager" col equals this manager's name
+  // Fallback: match by department (for employees without a manager col set)
   const visiblePeople = useMemo(() => {
-    if (!managerInfo || managerInfo.accessLevel === 'admin' || !managerInfo.department) {
-      return allPeople
-    }
-    return allPeople.filter(emp =>
-      emp.department?.trim().toLowerCase() === managerInfo.department?.trim().toLowerCase()
-    )
+    if (!managerInfo || managerInfo.accessLevel === 'admin') return allPeople
+    const mgrName = managerInfo.name?.trim().toLowerCase()
+    const mgrDept = managerInfo.department?.trim().toLowerCase()
+    return allPeople.filter(emp => {
+      const empManager = emp.manager?.trim().toLowerCase()
+      if (empManager) return empManager === mgrName
+      // fallback: department match if manager col is blank
+      return mgrDept && emp.department?.trim().toLowerCase() === mgrDept
+    })
   }, [allPeople, managerInfo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleResponses = useMemo(() =>
