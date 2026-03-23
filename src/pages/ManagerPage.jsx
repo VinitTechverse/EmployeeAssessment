@@ -615,12 +615,19 @@ function BulkConfirmModal({ people, onConfirm, onCancel, sending, msg }) {
 
 // ── PIN Login ─────────────────────────────────────────────────────────────────
 
-function PinLogin({ onSuccess }) {
-  const [email, setEmail]   = useState('')
-  const [pin, setPin]       = useState('')
-  const [error, setError]   = useState('')
-  const [shake, setShake]   = useState(false)
+function PinLogin() {
+  const [email, setEmail]     = useState('')
+  const [pin, setPin]         = useState('')
+  const [error, setError]     = useState('')
+  const [shake, setShake]     = useState(false)
   const [loading, setLoading] = useState(false)
+
+  const grantAccess = (info) => {
+    storage.setItem(PIN_SESSION_KEY, '1')
+    storage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
+    // Hard reload — on next page load useState reads localStorage and shows dashboard immediately
+    window.location.reload()
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -630,22 +637,18 @@ function PinLogin({ onSuccess }) {
 
     setLoading(true)
     try {
-      // Try multi-manager API (email + PIN)
       const res  = await fetch(
         `${APPS_SCRIPT_URL}?action=getManagerByPin&pin=${encodeURIComponent(pin)}&email=${encodeURIComponent(email.trim().toLowerCase())}`
       )
       const json = await res.json()
       if (json.ok && json.manager) {
-        const info = {
+        grantAccess({
           name:        json.manager.name || 'Manager',
           email:       email.trim().toLowerCase(),
           department:  json.manager.department || '',
           accessLevel: json.manager.accessLevel || 'manager',
-        }
-        storage.setItem(PIN_SESSION_KEY, '1')
-        storage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
-        onSuccess(info)
-        return   // setLoading intentionally NOT reset — component is about to unmount
+        })
+        return
       }
     } catch {
       // API unavailable — fall through to env PIN check
@@ -654,11 +657,8 @@ function PinLogin({ onSuccess }) {
     // Admin fallback: env PIN only (no email check)
     const correctPin = import.meta.env.VITE_MANAGER_PIN
     if (correctPin && pin === correctPin) {
-      const info = { name: 'Admin', email: email.trim().toLowerCase(), department: '', accessLevel: 'admin' }
-      storage.setItem(PIN_SESSION_KEY, '1')
-      storage.setItem(MGR_SESSION_KEY, JSON.stringify(info))
-      onSuccess(info)
-      return   // setLoading intentionally NOT reset — component is about to unmount
+      grantAccess({ name: 'Admin', email: email.trim().toLowerCase(), department: '', accessLevel: 'admin' })
+      return
     }
 
     setLoading(false)
@@ -813,14 +813,7 @@ export default function ManagerPage() {
   }, [selectedName]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!authed) {
-    return (
-      <PinLogin
-        onSuccess={(info) => {
-          setManagerInfo(info)
-          setAuthed(true)
-        }}
-      />
-    )
+    return <PinLogin />
   }
 
   // ── Derived data ───────────────────────────────────────────────────────────
