@@ -150,7 +150,8 @@ function Field({ label, children }) {
 
 function DeadlineBanner({ deadline }) {
   if (!deadline) return null
-  const dl      = new Date(deadline)
+  const dl = new Date(deadline)
+  if (isNaN(dl.getTime())) return null   // guard against malformed date strings
   const now     = new Date()
   const msLeft  = dl.setHours(23, 59, 59, 999) - now
   const daysLeft= Math.ceil(msLeft / 86400000)
@@ -862,7 +863,7 @@ function SuccessScreen({ data, onRestart }) {
   return (
     <div className="success-screen">
       <span className="success-icon">🎉</span>
-      <h2>You did it, {data.name?.split(' ')[0]}!</h2>
+      <h2>You did it, {data.name?.split(' ')[0] || 'you'}!</h2>
       <p>
         Your 2025–26 review has been submitted successfully. <br />
         The team at Radiant Techverse thanks you for taking the time to reflect.
@@ -915,9 +916,12 @@ export default function App() {
 
   // ── Derived lock state ─────────────────────────────────────────────────────
   const isLocked = siteConfig.form_locked === 'true'
-  const isDeadlinePassed = siteConfig.deadline
-    ? new Date() > new Date(siteConfig.deadline).setHours(23, 59, 59, 999)
-    : false
+  const isDeadlinePassed = (() => {
+    if (!siteConfig.deadline) return false
+    const d = new Date(siteConfig.deadline)
+    if (isNaN(d.getTime())) return false
+    return new Date() > d.setHours(23, 59, 59, 999)
+  })()
   // Show closed screen when locked OR deadline passed (unless extension granted)
   const showClosed = configLoaded && (isLocked || isDeadlinePassed) && !extensionName
 

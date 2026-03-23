@@ -193,7 +193,11 @@ function AnalyticsView({ employees, responses, managerInfo }) {
           <div className="mgr-an-panel-title">Submission Timeline</div>
           <div className="mgr-an-tl-list">
             {[...responses]
-              .sort((a, b) => new Date(b.firstSubmitted || b.timestamp) - new Date(a.firstSubmitted || a.timestamp))
+              .sort((a, b) => {
+                const tA = new Date(a.firstSubmitted || a.timestamp || 0).getTime() || 0
+                const tB = new Date(b.firstSubmitted || b.timestamp || 0).getTime() || 0
+                return tB - tA
+              })
               .map(r => (
                 <div key={r.name} className="mgr-an-tl-row">
                   <div className="mgr-an-tl-avatar">{r.name?.charAt(0)?.toUpperCase()}</div>
@@ -237,8 +241,8 @@ function CalibrationView({ responses, onSave }) {
 
   const sorted = [...reviewed].sort((a, b) => {
     if (sortKey === 'name')       return (a.name || '').localeCompare(b.name || '')
-    if (sortKey === 'rating-hi')  return Number(b.rating) - Number(a.rating)
-    if (sortKey === 'rating-lo')  return Number(a.rating) - Number(b.rating)
+    if (sortKey === 'rating-hi')  return (Number(b.rating) || 0) - (Number(a.rating) || 0)
+    if (sortKey === 'rating-lo')  return (Number(a.rating) || 0) - (Number(b.rating) || 0)
     if (sortKey === 'department') return (a.team || a.department || '').localeCompare(b.team || b.department || '')
     return 0
   })
@@ -342,9 +346,10 @@ function CalibrationView({ responses, onSave }) {
                       />
                     ) : (
                       r.managerComments
-                        ? r.managerComments.length > 80
-                          ? r.managerComments.slice(0, 80) + '…'
-                          : r.managerComments
+                        ? (() => {
+                            const c = String(r.managerComments)
+                            return c.length > 80 ? c.slice(0, 80) + '…' : c
+                          })()
                         : <span style={{ opacity: 0.4 }}>No comments yet</span>
                     )}
                   </td>
